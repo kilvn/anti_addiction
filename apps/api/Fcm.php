@@ -14,6 +14,7 @@ class Fcm extends Base
 {
     protected static self $instance;
     protected string $env;
+    protected string $test_key;
     protected array $header_data = [];
 
     public function __construct()
@@ -29,6 +30,10 @@ class Fcm extends Base
             'timestamps' => $this->timestamp,
             'sign' => '',
         ];
+
+        if ($this->env == 'dev' and isset($this->reqData['test_key'])) {
+            $this->test_key = $this->reqData['test_key'];
+        }
     }
 
     /**
@@ -68,6 +73,9 @@ class Fcm extends Base
         }
 
         $api_key = $_ENV['FCM_IDCARD_CHECK_KEY'];
+        if ($this->env == 'dev' and strlen($this->test_key)) {
+            $api_key = $this->test_key;
+        }
         $urls = [
             'production' => 'https://api.wlc.nppa.gov.cn/idcard/check/' . $api_key,
             'dev' => 'https://wlc.nppa.gov.cn/test/authentication/check/' . $api_key,
@@ -117,6 +125,9 @@ class Fcm extends Base
         }
 
         $api_key = $_ENV['FCM_IDCARD_QUERY_KEY'];
+        if ($this->env == 'dev' and strlen($this->test_key)) {
+            $api_key = $this->test_key;
+        }
         $urls = [
             'production' => 'http://api2.wlc.nppa.gov.cn/idcard/authentication/query/' . $api_key,
             'dev' => 'https://wlc.nppa.gov.cn/test/authentication/query/' . $api_key,
@@ -172,6 +183,9 @@ class Fcm extends Base
         ];
 
         $api_key = $_ENV['FCM_BEHAVIOR_KEY'];
+        if ($this->env == 'dev' and strlen($this->test_key)) {
+            $api_key = $this->test_key;
+        }
         $urls = [
             'production' => 'http://api2.wlc.nppa.gov.cn/behavior/collection/loginout/' . $api_key,
             'dev' => 'https://wlc.nppa.gov.cn/test/collection/loginout/' . $api_key,
