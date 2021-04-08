@@ -1,0 +1,7 @@
+.idea
+vendor
+.env
+composer.lock
+*.log
+.htaccess
+nginx.htaccess

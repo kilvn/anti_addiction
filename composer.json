@@ -1,0 +1,17 @@
+{
+    "name": "fcm-system/0.01",
+    "description": "防沉迷系统API",
+    "require": {
+        "kitetail/zttp": "^0.6.0",
+        "vlucas/phpdotenv": "^5.3"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "apps/"
+        },
+        "files": [
+            "apps/helpers/Util.php",
+            "apps/helpers/Fcm.php"
+        ]
+    }
+}
