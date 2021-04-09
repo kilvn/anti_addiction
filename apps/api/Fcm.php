@@ -13,8 +13,8 @@ use Helpers\Util;
 class Fcm extends Base
 {
     protected static self $instance;
-    protected string $env;
-    protected string $test_key;
+    protected string $env = 'dev';
+    protected string $test_key = '';
     protected array $header_data = [];
 
     public function __construct()
@@ -22,7 +22,7 @@ class Fcm extends Base
         parent::__construct();
 
         $this->timestamp *= 1000;
-        $this->env = strtolower($_ENV['APP_ENV']);
+        $this->env = $_ENV['APP_ENV'];
         $this->header_data = [
             'Content-Type' => 'application/json; charset=utf-8',
             'appId' => $_ENV['FCM_APPID'],
