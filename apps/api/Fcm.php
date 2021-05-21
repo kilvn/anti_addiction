@@ -77,7 +77,7 @@ class Fcm extends Base
             $api_key = $this->test_key;
         }
         $urls = [
-            'production' => 'https://api.wlc.nppa.gov.cn/idcard/check/' . $api_key,
+            'production' => 'https://api.wlc.nppa.gov.cn/idcard/authentication/check',
             'dev' => 'https://wlc.nppa.gov.cn/test/authentication/check/' . $api_key,
         ];
         $body = FcmUtil::aesEncode($_ENV['FCM_APPSECRET'], $api_data);
@@ -129,7 +129,7 @@ class Fcm extends Base
             $api_key = $this->test_key;
         }
         $urls = [
-            'production' => 'http://api2.wlc.nppa.gov.cn/idcard/authentication/query/' . $api_key,
+            'production' => 'http://api2.wlc.nppa.gov.cn/idcard/authentication/query',
             'dev' => 'https://wlc.nppa.gov.cn/test/authentication/query/' . $api_key,
         ];
         unset($this->header_data['Content-Type']);
@@ -187,7 +187,7 @@ class Fcm extends Base
             $api_key = $this->test_key;
         }
         $urls = [
-            'production' => 'http://api2.wlc.nppa.gov.cn/behavior/collection/loginout/' . $api_key,
+            'production' => 'http://api2.wlc.nppa.gov.cn/behavior/collection/loginout',
             'dev' => 'https://wlc.nppa.gov.cn/test/collection/loginout/' . $api_key,
         ];
         $body = FcmUtil::aesEncode($_ENV['FCM_APPSECRET'], $api_data);
@@ -208,7 +208,7 @@ class Fcm extends Base
             Util::jsonReturn(400, MSG_CODE[400], $json);
         }
 
-        Util::jsonReturn(200, MSG_CODE[200], $json['data']['result']);
+        Util::jsonReturn(200, MSG_CODE[200], $json);
 
 //        {
 //            "code": 200,
