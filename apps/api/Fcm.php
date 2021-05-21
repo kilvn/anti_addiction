@@ -1,37 +1,41 @@
 <?php
 
 use Zttp\Zttp;
-
 use Helpers\Fcm as FcmUtil;
 use Helpers\Util;
+use Predis\Client as Predis;
 
 /**
  * 网络游戏防沉迷实名认证系统 后端接口
- * document uri: https://wlc.nppa.gov.cn/2021/02/25/16e2520acd9f4404897ed1a5b8fd1240.pdf
+ *
+ * document uri: https://wlc.nppa.gov.cn/fcm_company/index.html
  * Class Fcm
  */
 class Fcm extends Base
 {
     protected static self $instance;
+    protected static ?Predis $redis = null;
     protected string $env = 'dev';
     protected string $test_key = '';
-    protected array $header_data = [];
+    protected string $app_secret = '';
+    protected array  $header_data = [];
 
     public function __construct()
     {
         parent::__construct();
 
         $this->timestamp *= 1000;
-        $this->env = $_ENV['APP_ENV'];
+        $this->env = strtolower($_ENV['APP_ENV']);
+        $this->app_secret = $this->env == 'production' ? $_ENV['FCM_APPSECRET'] : $_ENV['TEST_FCM_APPSECRET'];
         $this->header_data = [
             'Content-Type' => 'application/json; charset=utf-8',
-            'appId' => $_ENV['FCM_APPID'],
-            'bizId' => $_ENV['FCM_BIZID'],
+            'appId' => $this->env == 'production' ? $_ENV['FCM_APPID'] : $_ENV['TEST_FCM_APPID'],
+            'bizId' => $this->env == 'production' ? $_ENV['FCM_BIZID'] : $_ENV['TEST_FCM_APPID'],
             'timestamps' => $this->timestamp,
             'sign' => '',
         ];
 
-        if ($this->env == 'dev' and isset($this->reqData['test_key'])) {
+        if ($this->env != 'production' and isset($this->reqData['test_key'])) {
             $this->test_key = $this->reqData['test_key'];
         }
     }
@@ -47,6 +51,53 @@ class Fcm extends Base
             self::$instance = new self();
         }
         return self::$instance;
+    }
+
+    /**
+     * Get the instance of redis.
+     *
+     * @return Predis
+     */
+    public static function getRedis()
+    {
+        if (!self::$redis) {
+            self::$redis = new Predis(array(
+                'scheme'   => $_ENV['REDIS_SCHEME'],
+                'host'     => $_ENV['REDIS_HOST'],
+                'port'     => $_ENV['REDIS_PORT'],
+                'password' => $_ENV['REDIS_PWD'],
+                'database' => $_ENV['REDIS_DB'],
+            ));
+        }
+        return self::$redis;
+    }
+
+    /**
+     * 检查用户实名认证状态
+     */
+    public function get_auth_status()
+    {
+        $ai = $this->reqData['ai'] ?? '';
+
+        if (empty($ai)) {
+            Util::jsonReturn(400, '参数 ai 不能为空');
+        }
+
+        self::getRedis();
+        $redis = self::$redis;
+        $redis_key = 'FCM-CACHE:' . $ai;
+
+        if (!$redis->exists($redis_key)) {
+            $redis_data = [
+                'pi' => null,
+                'status' => 0,
+            ];
+            Util::jsonReturn(200, MSG_CODE[200], $redis_data);
+        }
+
+        $res = $redis->get($redis_key);
+
+        Util::jsonReturn(200, MSG_CODE[200], json_decode($res, JSON_OBJECT_AS_ARRAY));
     }
 
     /**
@@ -72,16 +123,15 @@ class Fcm extends Base
             Util::jsonReturn(400, '参数 idNum 不能为空');
         }
 
-        $api_key = $_ENV['FCM_IDCARD_CHECK_KEY'];
-        if ($this->env == 'dev' and strlen($this->test_key)) {
-            $api_key = $this->test_key;
+        if ($this->env != 'production' and !strlen($this->test_key)) {
+            $this->test_key = $_ENV['FCM_IDCARD_CHECK_KEY'];
         }
         $urls = [
             'production' => 'https://api.wlc.nppa.gov.cn/idcard/authentication/check',
-            'dev' => 'https://wlc.nppa.gov.cn/test/authentication/check/' . $api_key,
+            'dev' => 'https://wlc.nppa.gov.cn/test/authentication/check/' . $this->test_key,
         ];
-        $body = FcmUtil::aesEncode($_ENV['FCM_APPSECRET'], $api_data);
-        $this->header_data['sign'] = FcmUtil::createSign($_ENV['FCM_APPSECRET'], $this->header_data, $body);
+        $body = FcmUtil::aesEncode($this->app_secret, $api_data);
+        $this->header_data['sign'] = FcmUtil::createSign($this->app_secret, $this->header_data, $body);
 //        dump($this->header_data);exit;
 
         $response = Zttp::timeout(60)->withHeaders($this->header_data)->post($urls[$this->env], $body);
@@ -98,6 +148,15 @@ class Fcm extends Base
         if ($json['errcode'] != 0) {
             Util::jsonReturn(400, MSG_CODE[400], $json);
         }
+
+        self::getRedis();
+        $redis = self::$redis;
+        $redis_key = 'FCM-CACHE:' . $api_data['ai'];
+        $redis_data = json_encode([
+            'pi' => $json['data']['result']['pi'] ?? null,
+            'status' => $json['data']['result']['status'] ?? 0,
+        ]);
+        $redis->setex($redis_key, 0, $redis_data);
 
         Util::jsonReturn(200, MSG_CODE[200], $json['data']['result']);
 
@@ -124,16 +183,15 @@ class Fcm extends Base
             Util::jsonReturn(400, '参数 ai 不能为空');
         }
 
-        $api_key = $_ENV['FCM_IDCARD_QUERY_KEY'];
-        if ($this->env == 'dev' and strlen($this->test_key)) {
-            $api_key = $this->test_key;
+        if ($this->env != 'production' and !strlen($this->test_key)) {
+            $this->test_key = $_ENV['FCM_IDCARD_QUERY_KEY'];
         }
         $urls = [
             'production' => 'http://api2.wlc.nppa.gov.cn/idcard/authentication/query',
-            'dev' => 'https://wlc.nppa.gov.cn/test/authentication/query/' . $api_key,
+            'dev' => 'https://wlc.nppa.gov.cn/test/authentication/query/' . $this->test_key,
         ];
         unset($this->header_data['Content-Type']);
-        $this->header_data['sign'] = FcmUtil::createSign($_ENV['FCM_APPSECRET'], array_merge($this->header_data, $api_data));
+        $this->header_data['sign'] = FcmUtil::createSign($this->app_secret, array_merge($this->header_data, $api_data));
 
         $url = $urls[$this->env] . '?' . http_build_query($api_data);
         $response = Zttp::timeout(60)->withHeaders($this->header_data)->get($url);
@@ -150,6 +208,16 @@ class Fcm extends Base
         if ($json['errcode'] != 0) {
             Util::jsonReturn(400, MSG_CODE[400], $json);
         }
+
+        self::getRedis();
+        $redis = self::$redis;
+        $redis_key = 'FCM-CACHE:' . $api_data['ai'];
+        $redis_data = json_encode([
+            'pi' => $json['data']['result']['pi'] ?? null,
+            'status' => $json['data']['result']['status'] ?? 0,
+        ]);
+        $redis->del($redis_key);
+        $redis->setex($redis_key, 0, $redis_data);
 
         Util::jsonReturn(200, MSG_CODE[200], $json['data']['result']);
 
@@ -182,16 +250,15 @@ class Fcm extends Base
             ]
         ];
 
-        $api_key = $_ENV['FCM_BEHAVIOR_KEY'];
-        if ($this->env == 'dev' and strlen($this->test_key)) {
-            $api_key = $this->test_key;
+        if ($this->env != 'production' and !strlen($this->test_key)) {
+            $this->test_key = $_ENV['FCM_BEHAVIOR_KEY'];
         }
         $urls = [
             'production' => 'http://api2.wlc.nppa.gov.cn/behavior/collection/loginout',
-            'dev' => 'https://wlc.nppa.gov.cn/test/collection/loginout/' . $api_key,
+            'dev' => 'https://wlc.nppa.gov.cn/test/collection/loginout/' . $this->test_key,
         ];
-        $body = FcmUtil::aesEncode($_ENV['FCM_APPSECRET'], $api_data);
-        $this->header_data['sign'] = FcmUtil::createSign($_ENV['FCM_APPSECRET'], $this->header_data, $body);
+        $body = FcmUtil::aesEncode($this->app_secret, $api_data);
+        $this->header_data['sign'] = FcmUtil::createSign($this->app_secret, $this->header_data, $body);
 
         $response = Zttp::timeout(60)->withHeaders($this->header_data)->post($urls[$this->env], $body);
 

@@ -23,7 +23,7 @@ try_files $uri $uri/ /index.php$is_args$args;
 
 #### Use
 
-防沉迷系统官方文档地址：https://wlc.nppa.gov.cn/2021/02/25/16e2520acd9f4404897ed1a5b8fd1240.pdf
+防沉迷系统官方文档地址：https://wlc.nppa.gov.cn/fcm_company/index.html
 
 防沉迷系统的配置在 `.env` 文件中。
 
@@ -42,6 +42,12 @@ try_files $uri $uri/ /index.php$is_args$args;
 | 400|第三方API非成功返回值|
 | 401|第三方API远程请求失败|
 | 404|接口不存在|
+
+0. 查询本地redis库，ai实名认证状态
+   - POST
+   - http://xxx.com/api/fcm/get_auth_status
+   - 连接本地redis查询当前ai实名认证状态
+
 
 1. 认证提交
     - POST

@@ -1,9 +1,15 @@
 {
     "name": "fcm-system/0.01",
     "description": "防沉迷系统API",
+    "license": "MIT",
     "require": {
         "kitetail/zttp": "^0.6.0",
-        "vlucas/phpdotenv": "^5.3"
+        "predis/predis": "^1.1",
+        "vlucas/phpdotenv": "^5.3",
+        "php": "^7.2 || ^8.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^8.0 || ~9.4.4"
     },
     "autoload": {
         "psr-4": {
